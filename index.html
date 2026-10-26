@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expedição Impressão 3D | Neo Soul</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        neosoul: {
+                            dark: '#444649',
+                            lime: '#B7BF1B',
+                            light: '#E8E8E8',
+                            spaceBg: '#1e2022',
+                            cardBg: 'rgba(52, 54, 56, 0.82)',
+                            glow: 'rgba(183, 191, 27, 0.25)'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Averta', 'Averta Std', 'Plus Jakarta Sans', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Font Imports & Defaults */
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+        body {
+            background-color: #1e2022;
+            color: #E8E8E8;
+            font-family: 'Averta', 'Averta Std', 'Plus Jakarta Sans', sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Fundo Foto de Espaço Real com Overlay */
+        .space-bg-overlay {
+            background-image: 
+                linear-gradient(to bottom, rgba(30, 32, 34, 0.82), rgba(20, 21, 23, 0.92)),
+                url('https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=2070&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        /* 3D Filament Layer Lines Pattern Overlay */
+        .filament-texture {
+            background-image: repeating-linear-gradient(
+                0deg,
+                rgba(255, 255, 255, 0.035),
+                rgba(255, 255, 255, 0.035) 1.5px,
+                transparent 1.5px,
+                transparent 3px
+            );
+        }
+
+        .filament-texture-lime {
+            background-image: repeating-linear-gradient(
+                0deg,
+                rgba(183, 191, 27, 0.15),
+                rgba(183, 191, 27, 0.15) 2px,
+                transparent 2px,
+                transparent 4px
+            );
+        }
+
+        /* Glassmorphism Card Style */
+        .neo-card {
+            background: rgba(52, 54, 56, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(183, 191, 27, 0.25);
+            box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.6), 0 0 25px rgba(183, 191, 27, 0.06);
+        }
+
+        /* Interactive Card Selection */
+        .option-card {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(232, 232, 232, 0.12);
+        }
+
+        .option-card:hover {
+            border-color: rgba(183, 191, 27, 0.65);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(183, 191, 27, 0.18);
+        }
+
+        .option-card.selected {
+            border-color: #B7BF1B;
+            background-color: rgba(183, 191, 27, 0.14);
+            box-shadow: 0 0 20px rgba(183, 191, 27, 0.35);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e2022;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #444649;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #B7BF1B;
+        }
+
+        /* Floating animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(2deg); }
+        }
+
+        .animate-float {
+            animation: float 5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { filter: drop-shadow(0 0 8px rgba(183, 191, 27, 0.4)); }
+            50% { filter: drop-shadow(0 0 20px rgba(183, 191, 27, 0.8)); }
+        }
+
+        .glow-lime {
+            animation: pulse-glow 3s infinite;
+        }
+
+        /* Rocket Flame Effect */
+        @keyframes flame {
+            0%, 100% { transform: scaleY(1); opacity: 0.9; }
+            50% { transform: scaleY(1.3); opacity: 1; }
+        }
+        .rocket-flame {
+            animation: flame 0.2s infinite alternate;
+            transform-origin: top center;
+        }
+
+        /* Step Transitions */
+        .step-container {
+            display: none;
+            opacity: 0;
+            transform: translateY(15px);
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+
+        .step-container.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="space-bg-overlay relative flex flex-col justify-between min-h-screen select-none">
+
+    <!-- Canvas para Fundo Cósmico Estelar & Filamentos -->
+    <canvas id="spaceCanvas" class="fixed inset-0 pointer-events-none z-0 opacity-40"></canvas>
+
+    <!-- Cabeçalho / Branding -->
+    <header class="relative z-10 w-full p-4 md:p-6 flex justify-between items-center max-w-5xl mx-auto">
+        <div class="flex items-center gap-3">
+            <!-- Logo / Capacete de Astronauta 3D com Textura de Filamento -->
+            <div class="relative w-12 h-12 rounded-xl bg-neosoul-dark border border-neosoul-lime/40 flex items-center justify-center overflow-hidden filament-texture shadow-lg">
+                <svg class="w-8 h-8 text-neosoul-lime" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 20H52M10 26H54M8 32H56M10 38H54M12 44H52" stroke="#B7BF1B" stroke-width="1.2" stroke-opacity="0.4" stroke-dasharray="2 2"/>
+                    <path d="M32 8C18.7452 8 8 18.7452 8 32C8 39.5 11.5 46.2 17 50.5V56L24 53.5C26.5 55 29.2 56 32 56C45.2548 56 56 45.2548 56 32C56 18.7452 45.2548 8 32 8Z" stroke="#B7BF1B" stroke-width="2.5" stroke-linecap="round"/>
+                    <path d="M18 26C18 22.6863 24.268 20 32 20C39.732 20 46 22.6863 46 26V34C46 37.3137 39.732 40 32 40C24.268 40 18 37.3137 18 34V26Z" fill="#B7BF1B" fill-opacity="0.25" stroke="#B7BF1B" stroke-width="2"/>
+                    <ellipse cx="26" cy="25" rx="3" ry="1.5" fill="#E8E8E8" fill-opacity="0.7"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-wider text-neosoul-light flex items-center gap-2">
+                    NEO SOUL <span class="text-xs px-2 py-0.5 rounded-full bg-neosoul-lime/20 border border-neosoul-lime text-neosoul-lime font-mono">3D LAB</span>
+                </h1>
+                <p class="text-xs text-gray-400">Estúdio de Impressão 3D & Engenharia Criativa</p>
+            </div>
+        </div>
+
+        <!-- Telefone & Suporte de Voo -->
+        <div class="hidden sm:flex items-center gap-3">
+            <a href="https://wa.me/551126314876" target="_blank" class="flex items-center gap-2 bg-neosoul-cardBg/90 hover:bg-neosoul-lime/20 border border-neosoul-lime/40 px-3.5 py-1.5 rounded-full text-xs text-neosoul-light transition-all">
+                <i class="fa-brands fa-whatsapp text-neosoul-lime text-sm"></i>
+                <span class="font-bold text-neosoul-lime">(11) 2631-4876</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Conteúdo Principal do Quiz (Multi-Step) -->
+    <main class="relative z-10 flex-1 max-w-3xl w-full mx-auto px-4 py-4 flex flex-col justify-center">
+
+        <!-- TELA DE BOAS-VINDAS (PASSO 0) -->
+        <div id="step-0" class="step-container active text-center">
+            <div class="neo-card p-6 md:p-10 rounded-3xl relative overflow-hidden filament-texture">
+                
+                <!-- Ilustração do Astronauta 3D com Filamento Orbita -->
+                <div class="relative w-36 h-36 mx-auto mb-6 flex items-center justify-center">
+                    <div class="absolute inset-0 rounded-full border-2 border-dashed border-neosoul-lime/40 animate-spin" style="animation-duration: 18s;"></div>
+                    <div class="w-28 h-28 rounded-full bg-neosoul-dark border-2 border-neosoul-lime flex items-center justify-center glow-lime animate-float">
+                        <i class="fa-solid fa-user-astronaut text-5xl text-neosoul-lime"></i>
+                    </div>
+                </div>
+
+                <h2 class="text-2xl md:text-4xl font-extrabold text-white mb-3">
+                    Transforme sua ideia em objeto real impresso em 3D
+                </h2>
+                <p class="text-gray-300 text-sm md:text-base max-w-xl mx-auto mb-8 leading-relaxed">
+                    Responda o simulador interativo em poucas etapas e receba uma análise de viabilidade técnica e orçamento sob medida diretamente no WhatsApp da <strong class="text-neosoul-lime">Neo Soul</strong>.
+                </p>
+
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <button onclick="nextStep(1)" class="w-full sm:w-auto px-8 py-4 bg-neosoul-lime text-neosoul-dark font-extrabold rounded-2xl shadow-lg hover:brightness-110 transition-all transform hover:scale-105 flex items-center justify-center gap-3 text-lg">
+                        <span>Iniciar Simulador 3D</span>
+                        <i class="fa-solid fa-rocket"></i>
+                    </button>
+                </div>
+
+                <div class="mt-6 flex items-center justify-center gap-6 text-xs text-gray-400">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-clock text-neosoul-lime"></i> ~1 minuto</span>
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-shield-halved text-neosoul-lime"></i> Sem compromisso</span>
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-layer-group text-neosoul-lime"></i> Resolução FDM & Resina</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- PASSO 1: O que quer materializar -->
+        <div id="step-1" class="step-container">
+            <div class="neo-card p-6 md:p-8 rounded-3xl filament-texture">
+                <div class="mb-6">
+                    <span class="text-xs font-mono text-neosoul-lime uppercase tracking-widest">Fase 01 // Categoria</span>
+                    <h2 class="text-xl md:text-2xl font-bold text-white mt-1">O que você gostaria de criar em 3D?</h2>
+                    <p class="text-xs md:text-sm text-gray-300">Escolha o segmento principal do seu objeto.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-8">
+                    <!-- Opção A -->
+                    <div onclick="selectOption('categoria', 'Decoração & Utilidades do Lar', this)" class="option-card p-4 rounded-2xl bg-neosoul-dark/80 cursor-pointer flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-neosoul-lime/10 border border-neosoul-lime/30 flex items-center justify-center text-neosoul-lime text-2xl shrink-0">
+                            <i class="fa-solid fa-house text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white text-sm md:text-base">Decoração & Lar</h3>
+                            <p class="text-xs text-gray-400">Vasos, luminárias, suportes e utilidades.</p>
+                        </div>
+                    </div>
+
+                    <!-- Opção B -->
+                    <div onclick="selectOption('categoria', 'Geek, Action Figures & Cosplay', this)" class="option-card p-4 rounded-2xl bg-neosoul-dark/80 cursor-pointer flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-neosoul-lime/10 border border-neosoul-lime/30 flex items-center justify-center text-neosoul-lime text-2xl shrink-0">
+                            <i class="fa-solid fa-gamepad text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white text-sm md:text-base">Geek & Colecionáveis</h3>
+                            <p class="text-xs text-gray-400">Action figures, cosplay, miniaturas e réplicas.</p>
+                        </div>
+                    </div>
+
+                    <!-- Opção C -->
+                    <div onclick="selectOption('categoria', 'Empresarial, Troféus & Brindes', this)" class="option-card p-4 rounded-2xl bg-neosoul-dark/80 cursor-pointer flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-neosoul-lime/10 border border-neosoul-lime/30 flex items-center justify-center text-neosoul-lime text-2xl shrink-0">
+                            <i class="fa-solid fa-briefcase text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white text-sm md:text-base">Empresa & Brindes</h3>
+                            <p class="text-xs text-gray-400">Logotipos 3D, chaveiros, troféus e eventos.</p>
+                        </div>
+                    </div>
+
+                    <!-- Opção D -->
+                    <div onclick="selectOption('categoria', 'Peças Técnicas, Reposição & Protótipos', this)" class="option-card p-4 rounded-2xl bg-neosoul-dark/80 cursor-pointer flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-neosoul-lime/10 border border-neosoul-lime/30 flex items-center justify-center text-neosoul-lime text-2xl shrink-0">
+                            <i class="fa-solid fa-gears text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white text-sm md:text-base">Peças Técnicas</h3>
+                            <p class="text-xs text-gray-400">Reposição, gabinetes, engrenagens e suporte.</p>
+                        </div>
+                    </div>
+
+                    <!-- Opção E -->
+                    <div onclick="selectOption('categoria', 'Projeto Personalizado / Ideia Exclusiva', this)" class="option-card p-4 rounded-2xl bg-neosoul-dark/80 cursor-pointer flex items-center gap-4 sm:col-span-2">
+                        <div class="w-12 h-12 rounded-xl bg-neosoul-lime/10 border border-neosoul-lime/30 flex items-center justify-center text-neosoul-lime text-2xl shrink-0">
+                            <i class="fa-solid fa-wand-magic-sparkles text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white text-sm md:text-base">Ideia Especial / Personalizada</h3>
+                            <p class="text-xs text-gray-400">Tenho um projeto sob medida ou conceito único em mente.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="flex justify-between items-center pt-4 border-t border-gray-700">
+                    <button onclick="prevStep(0)" class="px-5 py-2.5 rounded-xl border border-gray-600 text-gray-300 hover:bg-gray-700 text-sm font-semibold transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-chevron-left text-xs"></i>
+                        <span>Voltar</span>
+                    </button>
+                    <button onclick="validateAndNext(1, 2)" class="px-6 py-2.5 rounded-xl bg-neosoul-lime text-neosoul-dark font-extrabold text-sm hover:brightness-110 transition-all flex items-center gap-2">
+                        <span>Próximo Passo</span>
+                        <i class="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PASSO 2: Nível da Ideia -->
+        <div id="step-2" class="step-container">
+            <div class="neo-card p-6 md:p-8 rounded-3xl filament-texture">
+                <div class="mb-6">
+                    <span class="text-xs font-mono text-neosoul-lime uppercase tracking-widest">Fase 02 // Estágio</span>
+                    <h2 class="text-xl md:text-2xl font-bold text-white mt-1">Em qual estágio está seu projeto?</h2>
+                    <p class="text-xs md:text-sm text-gray-300">Indique se você já possui arquivo para impressão ou apenas uma ideia.</p>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 mb-8">
+                    <!-- Opção 1 -->
+                    <div onclick="selectOption('nivelIdeia', 'Apenas ideia / rascunho (Requer Modelagem 3D)', this)" class="option-card p-4 md:p-5 rounded-2xl bg-neosoul-dark/80 cursor-pointer flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-neosoul-lime/10 border border-neosoul-lime/30 flex items-center justify-center text-neosoul-lime text-2xl shrink-0">
+                            <i class="fa-solid fa-pen-ruler text-xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-bold text-white text-base">Ideia na Cabeça / Rascunho</h3>
+                            <p class="text-xs text-gray-400">Preciso de suporte técnico para modelar e desenhar o arquivo 3D do zero.</p>
+                        </div>
+                    </div>
+
+                    <!-- Opção 2 -->
+                    <div onclick="selectOption('nivelIdeia', 'Tenho Fotos e Referências Visuais', this)" class="option-card p-4 md:p-5 rounded-2xl bg-neosoul-dark/80 cursor-pointer flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-neosoul-lime/10 border border-neosoul-lime/30 flex items-center justify-center text-neosoul-lime text-2xl shrink-0">
+                            <i class="fa-solid fa-images text-xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-bold text-white text-base">Fotos e Referências</h3>
+                            <p class="text-xs text-gray-400">Tenho imagens do Pinterest/Instagram e quero algo similar.</p>
+                        </div>
+                    </div>
+
+                    <!-- Opção 3 -->
+                    <div onclick="selectOption('nivelIdeia', 'Possuo Arquivo 3D Pronto (.STL, .OBJ, .STEP)', this)" class="option-card p-4 md:p-5 rounded-2xl bg-neosoul-dark/80 cursor-pointer flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-neosoul-lime/10 border border-neosoul-lime/30 flex items-center justify-center text-neosoul-lime text-2xl shrink-0">
+                            <i class="fa-solid fa-cube text-xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-bold text-white text-base">Arquivo 3D Pronto</h3>
+                            <p class="text-xs text-gray-400">Já possuo arquivo 3D pronto para fatiar e imprimir (.STL, .OBJ, .STEP, .3MF).</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center pt-4 border-t border-gray-700">
+                    <button onclick="prevStep(1)" class="px-5 py-2.5 rounded-xl border border-gray-600 text-gray-300 hover:bg-gray-700 text-sm font-semibold transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-chevron-left text-xs"></i>
+                        <span>Voltar</span>
+                    </button>
+                    <button onclick="validateAndNext(2, 3)" class="px-6 py-2.5 rounded-xl bg-neosoul-lime text-neosoul-dark font-extrabold text-sm hover:brightness-110 transition-all flex items-center gap-2">
+                        <span>Próximo Passo</span>
+                        <i class="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PASSO 3: Estilo & Acabamento com Visual de Filamento -->
+        <div id="step-3" class="step-container">
+            <div class="neo-card p-6 md:p-8 rounded-3xl filament-texture">
+                <div class="mb-6">
+                    <span class="text-xs font-mono text-neosoul-lime uppercase tracking-widest">Fase 03 // Superfície & Textura</span>
+                    <h2 class="text-xl md:text-2xl font-bold text-white mt-1">Qual estilo de acabamento você prefere?</h2>
+                    <p class="text-xs md:text-sm text-gray-300">Escolha o tipo de processamento das camadas do objeto.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <!-- Estilo 1: Impressão FDM Padrão -->
+                    <div onclick="selectOption('estiloAcabamento', 'Básico Funcional (Linhas de Filamento FDM Visíveis)', this)" class="option-card p-4 rounded-2xl bg-neosoul-dark/90 cursor-pointer flex flex-col justify-between relative overflow-hidden">
+                        <div class="h-20 rounded-lg mb-3 filament-texture-lime border border-neosoul-lime/30 flex items-center justify-center">
+                            <span class="text-xs font-mono text-neosoul-lime bg-neosoul-dark/90 px-2 py-1 rounded border border-neosoul-lime/40 flex items-center gap-1.5">
+                                <i class="fa-solid fa-layer-group text-xs"></i> Textura FDM 3D
+                            </span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white text-sm mb-1">Básico & Funcional</h3>
+                            <p class="text-xs text-gray-400">Impressão direta com linhas de camadas visíveis. Ótimo custo-benefício.</p>
+                        </div>
+                    </div>
+
+                    <!-- Estilo 2: Multicores / Filamento Especial -->
+                    <div onclick="selectOption('estiloAcabamento', 'Colorido / Troca Automática de Filamentos', this)" class="option-card p-4 rounded-2xl bg-neosoul-dark/90 cursor-pointer flex flex-col justify-between relative overflow-hidden">
+                        <div class="h-20 rounded-lg mb-3 bg-gradient-to-r from-neosoul-lime via-yellow-400 to-emerald-400 p-0.5 flex items-center justify-center">
+                            <div class="w-full h-full bg-neosoul-dark/90 rounded flex items-center justify-center">
+                                <span class="text-xs font-mono text-white bg-neosoul-dark/90 px-2 py-1 rounded flex items-center gap-1.5">
+                                    <i class="fa-solid fa-palette text-xs"></i> Multi-Filamentos
+                                </span>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white text-sm mb-1">Colorido / Multi-Material</h3>
+                            <p class="text-xs text-gray-400">Cores mescladas na própria impressão sem necessidade de pintura.</p>
+                        </div>
+                    </div>
+
+                    <!-- Estilo 3: Acabamento Premium / Pintura -->
+                    <div onclick="selectOption('estiloAcabamento', 'Premium / Lixado & Pintura Artesanal', this)" class="option-card p-4 rounded-2xl bg-neosoul-dark/90 cursor-pointer flex flex-col justify-between relative overflow-hidden">
+                        <div class="h-20 rounded-lg mb-3 bg-neosoul-dark border border-neosoul-lime flex items-center justify-center">
+                            <i class="fa-solid fa-spray-can-sparkles text-2xl text-neosoul-lime glow-lime"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white text-sm mb-1">Premium / Pós-Processado</h3>
+                            <p class="text-xs text-gray-400">Superfície tratada, lixada e pintada artesanalmente com alto detalhamento.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center pt-4 border-t border-gray-700">
+                    <button onclick="prevStep(2)" class="px-5 py-2.5 rounded-xl border border-gray-600 text-gray-300 hover:bg-gray-700 text-sm font-semibold transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-chevron-left text-xs"></i>
+                        <span>Voltar</span>
+                    </button>
+                    <button onclick="validateAndNext(3, 4)" class="px-6 py-2.5 rounded-xl bg-neosoul-lime text-neosoul-dark font-extrabold text-sm hover:brightness-110 transition-all flex items-center gap-2">
+                        <span>Próximo Passo</span>
+                        <i class="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PASSO 4: Cores & Materiais de Filamento -->
+        <div id="step-4" class="step-container">
+            <div class="neo-card p-6 md:p-8 rounded-3xl filament-texture">
+                <div class="mb-6">
+                    <span class="text-xs font-mono text-neosoul-lime uppercase tracking-widest">Fase 04 // Tonalidades</span>
+                    <h2 class="text-xl md:text-2xl font-bold text-white mt-1">Quais cores ou efeitos deseja?</h2>
+                    <p class="text-xs md:text-sm text-gray-300">Selecione uma ou mais opções para o filamento 3D.</p>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+                    <label class="cursor-pointer">
+                        <input type="checkbox" name="cores" value="Preto / Grafite Metálico" class="peer hidden" onchange="toggleColorSelection(this)">
+                        <div class="p-3 rounded-2xl bg-neosoul-dark border border-gray-700 peer-checked:border-neosoul-lime peer-checked:bg-neosoul-lime/10 flex items-center gap-3 transition-all">
+                            <span class="w-5 h-5 rounded-full bg-neutral-900 border border-gray-600 shrink-0"></span>
+                            <span class="text-xs font-bold text-white">Preto / Grafite</span>
+                        </div>
+                    </label>
+
+                    <label class="cursor-pointer">
+                        <input type="checkbox" name="cores" value="Branco Neve" class="peer hidden" onchange="toggleColorSelection(this)">
+                        <div class="p-3 rounded-2xl bg-neosoul-dark border border-gray-700 peer-checked:border-neosoul-lime peer-checked:bg-neosoul-lime/10 flex items-center gap-3 transition-all">
+                            <span class="w-5 h-5 rounded-full bg-gray-100 border border-gray-400 shrink-0"></span>
+                            <span class="text-xs font-bold text-white">Branco Neve</span>
+                        </div>
+                    </label>
+
+                    <label class="cursor-pointer">
+                        <input type="checkbox" name="cores" value="Verde Neo Soul Néon" class="peer hidden" onchange="toggleColorSelection(this)">
+                        <div class="p-3 rounded-2xl bg-neosoul-dark border border-gray-700 peer-checked:border-neosoul-lime peer-checked:bg-neosoul-lime/10 flex items-center gap-3 transition-all">
+                            <span class="w-5 h-5 rounded-full bg-[#B7BF1B] border border-neosoul-lime shrink-0"></span>
+                            <span class="text-xs font-bold text-white">Verde Neo Soul</span>
+                        </div>
+                    </label>
+
+                    <label class="cursor-pointer">
+                        <input type="checkbox" name="cores" value="Cores Vibrantes (Vermelho/Azul/Amarelo)" class="peer hidden" onchange="toggleColorSelection(this)">
+                        <div class="p-3 rounded-2xl bg-neosoul-dark border border-gray-700 peer-checked:border-neosoul-lime peer-checked:bg-neosoul-lime/10 flex items-center gap-3 transition-all">
+                            <span class="w-5 h-5 rounded-full bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500 shrink-0"></span>
+                            <span class="text-xs font-bold text-white">Cores Vibrantes</span>
+                        </div>
+                    </label>
+
+                    <label class="cursor-pointer">
+                        <input type="checkbox" name="cores" value="Silk Metalizado (Dourado/Prata/Cobre)" class="peer hidden" onchange="toggleColorSelection(this)">
+                        <div class="p-3 rounded-2xl bg-neosoul-dark border border-gray-700 peer-checked:border-neosoul-lime peer-checked:bg-neosoul-lime/10 flex items-center gap-3 transition-all">
+                            <span class="w-5 h-5 rounded-full bg-gradient-to-r from-amber-400 via-amber-200 to-gray-300 shrink-0"></span>
+                            <span class="text-xs font-bold text-white">Dourado / Prata</span>
+                        </div>
+                    </label>
+
+                    <label class="cursor-pointer">
+                        <input type="checkbox" name="cores" value="Efeitos Especiais (Glow / Mármore)" class="peer hidden" onchange="toggleColorSelection(this)">
+                        <div class="p-3 rounded-2xl bg-neosoul-dark border border-gray-700 peer-checked:border-neosoul-lime peer-checked:bg-neosoul-lime/10 flex items-center gap-3 transition-all">
+                            <span class="w-5 h-5 rounded-full bg-emerald-300 border border-emerald-400 shadow-[0_0_8px_#6ee7b7] shrink-0"></span>
+                            <span class="text-xs font-bold text-white">Efeito Glow / Mármore</span>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-xs font-bold text-gray-300 mb-2">Tamanho aproximado do objeto (Ex: 15cm x 10cm / Tamanho de uma mão)</label>
+                    <input type="text" id="tamanhoDetalhes" placeholder="Informe dimensões estimadas..." class="w-full bg-neosoul-dark border border-gray-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-neosoul-lime">
+                </div>
+
+                <div class="flex justify-between items-center pt-4 border-t border-gray-700">
+                    <button onclick="prevStep(3)" class="px-5 py-2.5 rounded-xl border border-gray-600 text-gray-300 hover:bg-gray-700 text-sm font-semibold transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-chevron-left text-xs"></i>
+                        <span>Voltar</span>
+                    </button>
+                    <button onclick="validateAndNext(4, 5)" class="px-6 py-2.5 rounded-xl bg-neosoul-lime text-neosoul-dark font-extrabold text-sm hover:brightness-110 transition-all flex items-center gap-2">
+                        <span>Próximo Passo</span>
+                        <i class="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PASSO 5: Referências & Urgência -->
+        <div id="step-5" class="step-container">
+            <div class="neo-card p-6 md:p-8 rounded-3xl filament-texture">
+                <div class="mb-6">
+                    <span class="text-xs font-mono text-neosoul-lime uppercase tracking-widest">Fase 05 // Referências</span>
+                    <h2 class="text-xl md:text-2xl font-bold text-white mt-1">Anexo ou Link de Referência</h2>
+                    <p class="text-xs md:text-sm text-gray-300">Envie um arquivo ou link da sua ideia se possuir.</p>
+                </div>
+
+                <div class="mb-6 p-6 border-2 border-dashed border-neosoul-lime/40 hover:border-neosoul-lime bg-neosoul-dark/60 rounded-2xl text-center transition-all cursor-pointer relative" onclick="triggerFileInput()">
+                    <i class="fa-solid fa-cloud-arrow-up text-3xl text-neosoul-lime mb-2"></i>
+                    <p class="text-sm font-bold text-white">Carregar Imagem ou Arquivo 3D</p>
+                    <p class="text-xs text-gray-400 mt-1">Suporta imagens (.png, .jpg) ou modelos (.stl, .obj, .step)</p>
+                    <input type="file" id="fileUpload" class="hidden" onchange="handleFileSelect(event)">
+                    <div id="fileInfo" class="mt-2 text-xs font-mono text-neosoul-lime hidden"></div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-xs font-bold text-gray-300 mb-2">Link de Referência (Pinterest, Drive, Thingiverse, Cults3D):</label>
+                    <input type="url" id="linkReferencia" placeholder="https://..." class="w-full bg-neosoul-dark border border-gray-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-neosoul-lime">
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-xs font-bold text-gray-300 mb-2">Qual é o seu prazo ideal para entrega?</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <button type="button" onclick="selectPrazo('Urgente (Até 5 dias úteis)', this)" class="prazo-btn p-3 rounded-xl bg-neosoul-dark border border-gray-700 text-xs text-white font-bold hover:border-neosoul-lime transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-bolt text-neosoul-lime"></i>
+                            <span>Urgente (&lt; 5 dias)</span>
+                        </button>
+                        <button type="button" onclick="selectPrazo('Prazo Normal (7 a 15 dias)', this)" class="prazo-btn p-3 rounded-xl bg-neosoul-dark border border-gray-700 text-xs text-white font-bold hover:border-neosoul-lime transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-calendar-days text-neosoul-lime"></i>
+                            <span>Padrão (7-15 dias)</span>
+                        </button>
+                        <button type="button" onclick="selectPrazo('Sem Pressa (Fase de cotação)', this)" class="prazo-btn p-3 rounded-xl bg-neosoul-dark border border-gray-700 text-xs text-white font-bold hover:border-neosoul-lime transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-mug-hot text-neosoul-lime"></i>
+                            <span>Sem Pressa</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center pt-4 border-t border-gray-700">
+                    <button onclick="prevStep(4)" class="px-5 py-2.5 rounded-xl border border-gray-600 text-gray-300 hover:bg-gray-700 text-sm font-semibold transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-chevron-left text-xs"></i>
+                        <span>Voltar</span>
+                    </button>
+                    <button onclick="validateAndNext(5, 6)" class="px-6 py-2.5 rounded-xl bg-neosoul-lime text-neosoul-dark font-extrabold text-sm hover:brightness-110 transition-all flex items-center gap-2">
+                        <span>Finalizar Dados</span>
+                        <i class="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PASSO 6: Contato do Cliente -->
+        <div id="step-6" class="step-container">
+            <div class="neo-card p-6 md:p-8 rounded-3xl filament-texture">
+                <div class="mb-6">
+                    <span class="text-xs font-mono text-neosoul-lime uppercase tracking-widest">Fase Final // Contato</span>
+                    <h2 class="text-xl md:text-2xl font-bold text-white mt-1">Identificação para Envio do Orçamento</h2>
+                    <p class="text-xs md:text-sm text-gray-300">Preencha seus dados para conectar diretamente com nossa central via WhatsApp.</p>
+                </div>
+
+                <form id="contactForm" onsubmit="submitForm(event)" class="space-y-4 mb-6">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-300 mb-1">Seu Nome *</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-user absolute left-4 top-3.5 text-gray-400 text-sm"></i>
+                            <input type="text" id="clienteNome" required placeholder="Digite seu nome completo" class="w-full bg-neosoul-dark border border-gray-700 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-neosoul-lime">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-300 mb-1">Seu WhatsApp com DDD *</label>
+                            <div class="relative">
+                                <i class="fa-brands fa-whatsapp absolute left-4 top-3.5 text-gray-400 text-sm"></i>
+                                <input type="tel" id="clienteWhats" required placeholder="(11) 99999-9999" class="w-full bg-neosoul-dark border border-gray-700 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-neosoul-lime">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-300 mb-1">Instagram (Opcional)</label>
+                            <div class="relative">
+                                <i class="fa-brands fa-instagram absolute left-4 top-3.5 text-gray-400 text-sm"></i>
+                                <input type="text" id="clienteInsta" placeholder="@seu.perfil" class="w-full bg-neosoul-dark border border-gray-700 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-neosoul-lime">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center pt-4 border-t border-gray-700">
+                        <button type="button" onclick="prevStep(5)" class="px-5 py-2.5 rounded-xl border border-gray-600 text-gray-300 hover:bg-gray-700 text-sm font-semibold transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-chevron-left text-xs"></i>
+                            <span>Voltar</span>
+                        </button>
+                        <button type="submit" class="px-8 py-3 bg-neosoul-lime text-neosoul-dark font-extrabold text-base rounded-xl shadow-lg hover:brightness-110 transition-all flex items-center gap-2 glow-lime">
+                            <span>Gerar Resumo no WhatsApp</span>
+                            <i class="fa-solid fa-paper-plane text-sm"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- TELA FINAL DE SUCESSO (PASSO 7) -->
+        <div id="step-7" class="step-container text-center">
+            <div class="neo-card p-6 md:p-10 rounded-3xl filament-texture relative overflow-hidden">
+                <div class="w-20 h-20 mx-auto mb-5 rounded-full bg-neosoul-lime/20 border-2 border-neosoul-lime flex items-center justify-center glow-lime">
+                    <i class="fa-solid fa-circle-check text-4xl text-neosoul-lime"></i>
+                </div>
+
+                <span class="text-xs font-mono text-neosoul-lime uppercase tracking-widest">Especificações Geradas!</span>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-white mt-1 mb-3">
+                    Enviar Especificações do Projeto
+                </h2>
+                <p class="text-gray-300 text-sm max-w-lg mx-auto mb-6">
+                    Clique no botão proeminente abaixo para abrir o WhatsApp da <strong class="text-neosoul-lime">Neo Soul (11) 2631-4876</strong> com todos os dados preenchidos automaticamente.
+                </p>
+
+                <!-- Resumo dos Dados -->
+                <div id="resumoBox" class="bg-neosoul-dark/95 border border-neosoul-lime/30 rounded-2xl p-4 text-left text-xs font-mono mb-8 text-gray-300 space-y-1.5 max-w-md mx-auto shadow-inner">
+                    <!-- Gerado via JS -->
+                </div>
+
+                <a id="btnWhatsappLink" href="#" target="_blank" class="inline-flex items-center justify-center gap-3 w-full sm:w-auto px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-base rounded-2xl shadow-xl transition-all transform hover:scale-105 mb-4">
+                    <i class="fa-brands fa-whatsapp text-2xl"></i>
+                    <span>Enviar Projeto no WhatsApp (11) 2631-4876</span>
+                </a>
+
+                <div class="block text-xs text-gray-400 mt-2">
+                    <i class="fa-solid fa-headset text-neosoul-lime mr-1"></i>
+                    Atendimento técnico direto com especialistas de impressão 3D da Neo Soul
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Botão Flutuante Fixo de Atendimento Rápido WhatsApp -->
+    <a href="https://wa.me/551126314876?text=Ol%C3%A1!%20Gostaria%20de%20tirar%20uma%20d%C3%BAvida%20sobre%20impress%C3%A3o%203D%20com%20a%20Neo%20Soul." target="_blank" class="fixed bottom-20 right-4 z-40 bg-emerald-500 hover:bg-emerald-600 text-white p-3.5 rounded-full shadow-2xl transition-all transform hover:scale-110 flex items-center gap-2 border border-emerald-300">
+        <i class="fa-brands fa-whatsapp text-2xl"></i>
+        <span class="hidden md:inline font-bold text-xs pr-1">Dúvidas Rápidas</span>
+    </a>
+
+    <!-- Barra de Progresso do Foguete no Rodapé -->
+    <footer class="relative z-10 w-full max-w-3xl mx-auto px-4 pb-6 pt-2">
+        <div class="bg-neosoul-cardBg/90 border border-neosoul-lime/25 rounded-2xl p-3 md:p-4 backdrop-blur-md shadow-xl">
+            <div class="flex justify-between items-center text-xs font-mono mb-2">
+                <span class="text-neosoul-lime font-bold flex items-center gap-1.5">
+                    <i class="fa-solid fa-compass animate-spin text-xs" style="animation-duration: 8s;"></i>
+                    <span id="progressStepText">EXPEDIÇÃO: 0 / 6</span>
+                </span>
+                <span id="timeLeftText" class="text-gray-300">
+                    <i class="fa-solid fa-stopwatch text-neosoul-lime mr-1"></i> ~60 segundos para finalizar
+                </span>
+            </div>
+
+            <!-- Trilho da Barra de Progresso com Foguetinho -->
+            <div class="relative w-full h-3 bg-neosoul-dark rounded-full overflow-visible border border-gray-700">
+                <div id="progressBar" class="h-full bg-gradient-to-r from-neosoul-dark via-neosoul-lime to-neosoul-lime rounded-full transition-all duration-500" style="width: 0%;"></div>
+                
+                <div id="rocketIcon" class="absolute top-1/2 -translate-y-1/2 transition-all duration-500 flex items-center" style="left: 0%;">
+                    <div class="relative transform -rotate-45">
+                        <i class="fa-solid fa-rocket text-xl text-neosoul-lime drop-shadow-[0_0_8px_rgba(183,191,27,0.8)]"></i>
+                        <span class="rocket-flame absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-3 bg-amber-400 rounded-full blur-[1px]"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Notificação customizada de validação -->
+    <div id="toastMessage" class="fixed top-5 right-5 z-50 bg-red-600 text-white px-5 py-3 rounded-xl shadow-2xl font-bold text-sm hidden transition-all flex items-center gap-2">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span id="toastText">Por favor, selecione uma opção antes de avançar!</span>
+    </div>
+
+    <!-- Script de Lógica do Quiz e Fundo Canvas -->
+    <script>
+        // Número Oficial do WhatsApp Neo Soul
+        const SEU_NUMERO_WHATSAPP = "551126314876"; 
+
+        // Estado das Respostas do Formulário
+        const formData = {
+            categoria: '',
+            nivelIdeia: '',
+            estiloAcabamento: '',
+            cores: [],
+            tamanhoDetalhes: '',
+            linkReferencia: '',
+            prazo: '',
+            clienteNome: '',
+            clienteWhats: '',
+            clienteInsta: ''
+        };
+
+        let currentStep = 0;
+        const totalSteps = 6;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initSpaceCanvas();
+            updateProgress(0);
+            if (window.lucide) lucide.createIcons();
+        });
+
+        function nextStep(targetStep) {
+            hideAllSteps();
+            currentStep = targetStep;
+            const container = document.getElementById(`step-${targetStep}`);
+            if (container) {
+                container.classList.add('active');
+            }
+            updateProgress(targetStep);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function prevStep(targetStep) {
+            nextStep(targetStep);
+        }
+
+        function hideAllSteps() {
+            const steps = document.querySelectorAll('.step-container');
+            steps.forEach(step => step.classList.remove('active'));
+        }
+
+        function validateAndNext(current, next) {
+            if (current === 1 && !formData.categoria) {
+                showToast("Por favor, selecione a categoria do objeto!");
+                return;
+            }
+            if (current === 2 && !formData.nivelIdeia) {
+                showToast("Selecione o estágio atual do projeto!");
+                return;
+            }
+            if (current === 3 && !formData.estiloAcabamento) {
+                showToast("Escolha o acabamento desejado!");
+                return;
+            }
+            if (current === 4) {
+                formData.tamanhoDetalhes = document.getElementById('tamanhoDetalhes').value.trim();
+            }
+            if (current === 5) {
+                formData.linkReferencia = document.getElementById('linkReferencia').value.trim();
+                if (!formData.prazo) {
+                    formData.prazo = "Prazo Normal (7 a 15 dias)";
+                }
+            }
+            nextStep(next);
+        }
+
+        function selectOption(key, value, element) {
+            formData[key] = value;
+            const parent = element.parentElement;
+            const cards = parent.querySelectorAll('.option-card');
+            cards.forEach(card => card.classList.remove('selected'));
+            element.classList.add('selected');
+        }
+
+        function toggleColorSelection(checkbox) {
+            const checkedBoxes = document.querySelectorAll('input[name="cores"]:checked');
+            formData.cores = Array.from(checkedBoxes).map(cb => cb.value);
+        }
+
+        function selectPrazo(value, btn) {
+            formData.prazo = value;
+            document.querySelectorAll('.prazo-btn').forEach(b => {
+                b.classList.remove('border-neosoul-lime', 'bg-neosoul-lime/20');
+            });
+            btn.classList.add('border-neosoul-lime', 'bg-neosoul-lime/20');
+        }
+
+        function triggerFileInput() {
+            document.getElementById('fileUpload').click();
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            const infoDiv = document.getElementById('fileInfo');
+            if (file) {
+                infoDiv.textContent = `✓ Arquivo anexado: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                infoDiv.classList.remove('hidden');
+            }
+        }
+
+        function submitForm(event) {
+            event.preventDefault();
+            formData.clienteNome = document.getElementById('clienteNome').value.trim();
+            formData.clienteWhats = document.getElementById('clienteWhats').value.trim();
+            formData.clienteInsta = document.getElementById('clienteInsta').value.trim();
+
+            if (!formData.clienteNome || !formData.clienteWhats) {
+                showToast("Preencha seu Nome e WhatsApp!");
+                return;
+            }
+
+            renderSummary();
+            generateWhatsAppLink();
+            nextStep(7);
+        }
+
+        function renderSummary() {
+            const summaryBox = document.getElementById('resumoBox');
+            const coresTexto = formData.cores.length > 0 ? formData.cores.join(', ') : 'A definir';
+            
+            summaryBox.innerHTML = `
+                <p class="text-neosoul-lime font-bold border-b border-gray-700 pb-1 mb-2">ESPECIFICAÇÕES DO PROJETO 3D:</p>
+                <p><strong>Cliente:</strong> ${formData.clienteNome}</p>
+                <p><strong>Contato:</strong> ${formData.clienteWhats} ${formData.clienteInsta ? '(| ' + formData.clienteInsta + ')' : ''}</p>
+                <p><strong>Categoria:</strong> ${formData.categoria}</p>
+                <p><strong>Estágio:</strong> ${formData.nivelIdeia}</p>
+                <p><strong>Acabamento:</strong> ${formData.estiloAcabamento}</p>
+                <p><strong>Cores/Filamento:</strong> ${coresTexto}</p>
+                ${formData.tamanhoDetalhes ? `<p><strong>Dimensões:</strong> ${formData.tamanhoDetalhes}</p>` : ''}
+                <p><strong>Prazo:</strong> ${formData.prazo}</p>
+            `;
+        }
+
+        function generateWhatsAppLink() {
+            const coresTexto = formData.cores.length > 0 ? formData.cores.join(', ') : 'A definir';
+            
+            const textMsg = `Olá, Neo Soul! Vim pelo formulário interativo de Impressão 3D e gostaria de solicitar um orçamento:%0A%0A` +
+                `*NOME:* ${formData.clienteNome}%0A` +
+                `*WHATSAPP:* ${formData.clienteWhats}%0A` +
+                `${formData.clienteInsta ? `*INSTAGRAM:* ${formData.clienteInsta}%0A` : ''}` +
+                `----------------------------------%0A` +
+                `*CATEGORIA:* ${formData.categoria}%0A` +
+                `*ESTÁGIO:* ${formData.nivelIdeia}%0A` +
+                `*ACABAMENTO:* ${formData.estiloAcabamento}%0A` +
+                `*CORES/FILAMENTO:* ${coresTexto}%0A` +
+                `${formData.tamanhoDetalhes ? `*DIMENSÕES:* ${formData.tamanhoDetalhes}%0A` : ''}` +
+                `${formData.linkReferencia ? `*REFERÊNCIA:* ${formData.linkReferencia}%0A` : ''}` +
+                `*PRAZO:* ${formData.prazo}%0A%0A` +
+                `Aguardo análise de viabilidade e orçamento!`;
+
+            const finalUrl = `https://wa.me/${SEU_NUMERO_WHATSAPP}?text=${textMsg}`;
+            document.getElementById('btnWhatsappLink').href = finalUrl;
+        }
+
+        function updateProgress(step) {
+            const progressPercent = Math.min((step / totalSteps) * 100, 100);
+            const progressBar = document.getElementById('progressBar');
+            const rocketIcon = document.getElementById('rocketIcon');
+            const progressStepText = document.getElementById('progressStepText');
+            const timeLeftText = document.getElementById('timeLeftText');
+
+            if (progressBar) progressBar.style.width = `${progressPercent}%`;
+            if (rocketIcon) rocketIcon.style.left = `calc(${progressPercent}% - 12px)`;
+
+            if (progressStepText) {
+                progressStepText.textContent = step === 0 ? "EXPEDIÇÃO: PRONTO PARA DECOLAR" : `ETAPA ${step} DE ${totalSteps}`;
+            }
+
+            if (timeLeftText) {
+                const secondsLeft = Math.max(0, 60 - step * 10);
+                timeLeftText.textContent = step === 7 
+                    ? "Projeto Pronto para Envio" 
+                    : `Faltam ~${secondsLeft}s para finalizar`;
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toastMessage');
+            const text = document.getElementById('toastText');
+            text.textContent = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // CANVAS ESPACIAL SUTIL
+        function initSpaceCanvas() {
+            const canvas = document.getElementById('spaceCanvas');
+            const ctx = canvas.getContext('2d');
+
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            const stars = Array.from({ length: 60 }, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2,
+                opacity: Math.random(),
+                speed: Math.random() * 0.01 + 0.005
+            }));
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                stars.forEach(star => {
+                    star.opacity += star.speed;
+                    if (star.opacity > 1 || star.opacity < 0) star.speed = -star.speed;
+
+                    ctx.fillStyle = `rgba(232, 232, 232, ${Math.abs(star.opacity)})`;
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                requestAnimationFrame(animate);
+            }
+
+            animate();
+        }
+    </script>
+</body>
+</html>
